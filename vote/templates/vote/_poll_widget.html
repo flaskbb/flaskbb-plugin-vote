@@ -1,0 +1,56 @@
+<div class="mb-3 col-12">
+    <div class="card my-2 vote-poll">
+        <div class="card-body">
+            <h6 class="card-title">{{ poll.question }}</h6>
+
+            {% if can_vote and not editing and not user_vote_ids %}
+            <form method="post" action="{{ url_for('vote.cast_vote', poll_id=poll.id) }}">
+                {{ form.hidden_tag() }}
+                {% for option in poll.options %}
+                <div class="form-check">
+                    <input class="form-check-input" type="{{ 'checkbox' if poll.is_multiple_choice else 'radio' }}"
+                           name="option_id" value="{{ option.id }}" id="vote-poll-{{ poll.id }}-option-{{ option.id }}">
+                    <label class="form-check-label" for="vote-poll-{{ poll.id }}-option-{{ option.id }}">
+                        {{ option.text }}
+                    </label>
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-sm btn-primary mt-2">{{ _("Vote") }}</button>
+            </form>
+            {% else %}
+            <ul class="list-unstyled mb-1">
+                {% for option in poll.options %}
+                {% set percentage = (100 * option.vote_count / poll.total_votes) if poll.total_votes else 0 %}
+                <li class="mb-1 {{ 'fw-bold' if option.id in user_vote_ids }}">
+                    <div class="d-flex justify-content-between">
+                        <span>{{ option.text }}</span>
+                        <span>{{ "%.0f"|format(percentage) }}% ({{ option.vote_count }})</span>
+                    </div>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%"></div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            <small class="text-muted">
+                {% if editing %}
+                {{ _("This poll cannot be changed here.") }}
+                {% else %}
+                {{ _("%(count)s total votes", count=poll.total_votes) }}
+                {% if not can_vote %} &middot; {{ _("Log in to vote.") }}{% endif %}
+                {% endif %}
+            </small>
+            {% endif %}
+
+            {% if can_delete %}
+            <form method="post" action="{{ url_for('vote.delete_poll', poll_id=poll.id) }}" class="mt-2">
+                {{ delete_form.hidden_tag() }}
+                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmModal"
+                        data-tooltip="tooltip" title="{{ _('Delete this poll') }}">
+                    <span class="fas fa-trash fa-fw"></span> {{ _("Delete Poll") }}
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>

@@ -1,0 +1,90 @@
+[project]
+name = "flaskbb-plugin-vote"
+version = "1.0.0"
+dependencies = [
+    "FlaskBB>=3.0.0",
+]
+requires-python = ">=3.12"
+authors = [
+  {name = "Peter Justin", email = "peter.justin@outlook.com"},
+]
+maintainers = [
+  {name = "Peter Justin", email = "peter.justin@outlook.com"}
+]
+description = "A polls plugin for FlaskBB - attach single or multiple choice polls to topics and posts"
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICEN[CS]E"]
+keywords = ["flaskbb", "plugin", "vote", "poll", "polls"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Flask",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+[project.urls]
+Homepage = "https://github.com/flaskbb/flaskbb-plugin-vote"
+Repository = "https://github.com/flaskbb/flaskbb-plugin-vote"
+Issues = "https://github.com/flaskbb/flaskbb-plugin-vote/issues"
+Changelog = "https://github.com/flaskbb/flaskbb-plugin-vote/blob/master/CHANGELOG.md"
+
+[project.entry-points.'flaskbb_plugins']
+vote = 'vote'
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "hatch",
+    "Babel",
+    "pytest",
+    "ruff",
+]
+
+[tool.hatch.build.targets.sdist]
+only-include = ["vote", "tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["vote"]
+
+[tool.uv]
+package = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.basedpyright]
+include = ["vote"]
+exclude = ["**/node_modules", "**/resources", "**/__pycache__", "**/docs"]
+defineConstant = { DEBUG = true }
+reportIgnoreCommentWithoutRule = false
+reportMissingImports = "error"
+reportMissingTypeStubs = false
+reportUnusedCallResult = false
+reportUnannotatedClassAttribute = false
+reportUnusedParameter = false
+reportAny = false
+reportExplicitAny = false
+
+[tool.pytest]
+minversion = "9.0"
+addopts = [
+    "-vvl",
+    "--strict-markers",
+    "--capture", "fd",
+    "--tb", "short",
+    "--pythonwarnings",  "error::flaskbb.deprecation.FlaskBBDeprecation",
+    "--dist", "load"
+]
+testpaths = [
+    "tests",
+]

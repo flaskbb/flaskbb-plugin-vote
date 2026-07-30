@@ -1,0 +1,41 @@
+<!-- poll_data itself is already rendered by this page's form.hidden_tag() call,
+     since it's a HiddenField - only the supporting dialog belongs here. -->
+<dialog id="vote-poll-dialog" class="border-0 rounded p-3"
+        style="width: 500px; max-width: 90vw; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0;"
+        data-validation-message="{{ _('A poll needs a question and at least two options.') }}">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">{{ _("Insert Poll") }}</h5>
+            <button type="button" class="btn-close" id="vote-poll-close" aria-label="{{ _('Close') }}"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label" for="vote-poll-question">{{ _("Question") }}</label>
+                <input type="text" class="form-control" id="vote-poll-question" maxlength="255">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">{{ _("Choice type") }}</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="vote-poll-type" id="vote-poll-type-single" checked>
+                    <label class="form-check-label" for="vote-poll-type-single">{{ _("Single choice") }}</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="vote-poll-type" id="vote-poll-type-multiple">
+                    <label class="form-check-label" for="vote-poll-type-multiple">{{ _("Multiple choice") }}</label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">{{ _("Options") }}</label>
+                <div id="vote-poll-options"></div>
+                <button type="button" class="btn btn-sm btn-white mt-1" id="vote-poll-add-option">
+                    <span class="fas fa-plus"></span> {{ _("Add option") }}
+                </button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-white me-auto" id="vote-poll-remove" hidden>{{ _("Remove poll") }}</button>
+            <button type="button" class="btn btn-white me-1" id="vote-poll-cancel">{{ _("Cancel") }}</button>
+            <button type="button" class="btn btn-primary" id="vote-poll-insert">{{ _("Insert") }}</button>
+        </div>
+    </div>
+</dialog>
