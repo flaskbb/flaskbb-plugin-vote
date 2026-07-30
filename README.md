@@ -10,6 +10,10 @@ Installation
 Install *flaskbb-plugin-vote* with
 ``pip install flaskbb-plugin-vote``
 
+Credits
+-------
+Inspired by [flaskbb-plugin-polls](https://github.com/micha030201/flaskbb-plugin-polls).
+
 License
 -------
 This project is licensed under the terms of the [BSD License](/LICENSE).
