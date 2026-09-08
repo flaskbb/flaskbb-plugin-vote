@@ -13,7 +13,7 @@ import logging
 
 from flaskbb.extensions import db
 from flaskbb.forum.models import Post
-from flaskbb.utils.database import CRUDMixin, UTCDateTime
+from flaskbb.utils.database import BaseModel, UTCDateTime
 from flaskbb.utils.helpers import time_utcnow
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -25,7 +25,7 @@ MULTIPLE_CHOICE = "multiple"
 POLL_TYPES = (SINGLE_CHOICE, MULTIPLE_CHOICE)
 
 
-class Poll(db.Model, CRUDMixin):
+class Poll(BaseModel):
     __tablename__ = "vote_polls"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -78,7 +78,7 @@ class Poll(db.Model, CRUDMixin):
         return [vote.poll_option_id for vote in votes]
 
 
-class PollOption(db.Model, CRUDMixin):
+class PollOption(BaseModel):
     __tablename__ = "vote_poll_options"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -98,7 +98,7 @@ class PollOption(db.Model, CRUDMixin):
         return PollVote.count(PollVote.poll_option_id == self.id)
 
 
-class PollVote(db.Model, CRUDMixin):
+class PollVote(BaseModel):
     __tablename__ = "vote_poll_votes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

@@ -1,7 +1,48 @@
 <!-- poll_data itself is already rendered by this page's form.hidden_tag() call,
      since it's a HiddenField - only the supporting dialog belongs here. -->
-<dialog id="vote-poll-dialog" class="border-0 rounded p-3"
-        style="width: 500px; max-width: 90vw; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0;"
+<style>
+    /* A native <dialog> paints the UA's Canvas colour (white), and the .modal-*
+       children read their surfaces from --bs-modal-* variables that Bootstrap
+       only defines on .modal - which this element is not. Left alone, both fall
+       back to light defaults and the dialog stays white on a dark theme. Supply
+       the variables from the theme's root palette and keep the dialog itself
+       bare, so .modal-content paints the surface like it does in a real modal. */
+    #vote-poll-dialog {
+        --bs-modal-color: var(--bs-body-color);
+        --bs-modal-bg: var(--bs-body-bg);
+        --bs-modal-border-color: var(--bs-border-color);
+        --bs-modal-border-width: var(--bs-border-width);
+        --bs-modal-border-radius: var(--bs-border-radius-lg);
+        --bs-modal-inner-border-radius: calc(var(--bs-border-radius-lg) - var(--bs-border-width));
+        --bs-modal-padding: 1rem;
+        --bs-modal-header-padding: 1rem;
+        --bs-modal-header-border-color: var(--bs-border-color);
+        --bs-modal-header-border-width: var(--bs-border-width);
+        --bs-modal-title-line-height: 1.5;
+        --bs-modal-footer-gap: 0.5rem;
+        --bs-modal-footer-bg: transparent;
+        --bs-modal-footer-border-color: var(--bs-border-color);
+        --bs-modal-footer-border-width: var(--bs-border-width);
+
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 500px;
+        max-width: 90vw;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--bs-body-color);
+    }
+
+    #vote-poll-dialog::backdrop {
+        background-color: #000;
+        opacity: .5;
+    }
+</style>
+<dialog id="vote-poll-dialog"
         data-validation-message="{{ _('A poll needs a question and at least two options.') }}">
     <div class="modal-content">
         <div class="modal-header">

@@ -9,7 +9,7 @@ create_app() and its hookimpls actually run) - see README.md.
 import json
 from contextlib import contextmanager
 
-from flaskbb.core.settings import flaskbb_config
+from flaskbb.settings import flaskbb_config
 from flaskbb.extensions import pluggy
 from flaskbb.forum.forms import EditTopicForm, NewTopicForm, ReplyForm
 

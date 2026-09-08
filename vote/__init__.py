@@ -14,7 +14,7 @@ import os
 
 from flask import Flask
 from flask_login import current_user
-from flaskbb.core.settings import BoolSetting, IntSetting, SettingGroup, flaskbb_config
+from flaskbb.settings import BoolSetting, IntSetting, SettingGroup, flaskbb_config
 from flaskbb.forum.forms import NewTopicForm, ReplyForm
 from flaskbb.forum.models import Post
 from flaskbb.utils.helpers import real, render_template
