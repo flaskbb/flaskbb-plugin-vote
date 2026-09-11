@@ -69,17 +69,12 @@ def test_parse_poll_payload_respects_max_options():
 
 
 def test_parse_poll_payload_strips_and_drops_blank_options():
-    payload = parse_poll_payload(
-        valid_payload(options=[" Red ", "", "  ", "Blue"]), max_options=10
-    )
+    payload = parse_poll_payload(valid_payload(options=[" Red ", "", "  ", "Blue"]), max_options=10)
     assert payload.options == ("Red", "Blue")
 
 
 def test_parse_poll_payload_option_too_long():
-    assert (
-        parse_poll_payload(valid_payload(options=["Red", "x" * 256]), max_options=10)
-        is None
-    )
+    assert parse_poll_payload(valid_payload(options=["Red", "x" * 256]), max_options=10) is None
 
 
 def test_parse_poll_payload_non_string_option():
@@ -113,12 +108,8 @@ def test_can_access_poll_false_when_forum_has_no_matching_group(category, user):
     restricted_forum.save(groups=[])
 
     topic = Topic(title="Restricted topic")
-    topic = topic.save(
-        forum=restricted_forum, user=user, post=Post(content="Restricted post")
-    )
-    poll = Poll(
-        post_id=topic.first_post.id, question="Favorite color?", poll_type="single"
-    )
+    topic = topic.save(forum=restricted_forum, user=user, post=Post(content="Restricted post"))
+    poll = Poll(post_id=topic.first_post.id, question="Favorite color?", poll_type="single")
     poll.save()
 
     assert can_access_poll(user, poll) is False
@@ -190,7 +181,5 @@ def test_can_delete_poll_true_for_moderator_of_the_polls_forum(poll, moderator_u
     assert can_delete_poll(moderator_user, poll) is True
 
 
-def test_can_delete_poll_false_for_moderator_of_a_different_forum(
-    poll, other_moderator_user
-):
+def test_can_delete_poll_false_for_moderator_of_a_different_forum(poll, other_moderator_user):
     assert can_delete_poll(other_moderator_user, poll) is False

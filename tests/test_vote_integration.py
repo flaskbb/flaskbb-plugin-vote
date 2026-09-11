@@ -9,9 +9,9 @@ create_app() and its hookimpls actually run) - see README.md.
 import json
 from contextlib import contextmanager
 
-from flaskbb.settings import flaskbb_config
 from flaskbb.extensions import pluggy
 from flaskbb.forum.forms import EditTopicForm, NewTopicForm, ReplyForm
+from flaskbb.settings import flaskbb_config
 
 import vote as vote_plugin
 from vote.models import Poll, PollOption
@@ -63,9 +63,7 @@ def test_reply_form_has_poll_data_field(request_context, default_settings):
     assert hasattr(reply_form(), "poll_data")
 
 
-def test_submitting_a_new_topic_with_poll_data_creates_a_poll(
-    request_context, forum, user
-):
+def test_submitting_a_new_topic_with_poll_data_creates_a_poll(request_context, forum, user):
     form = new_topic_form(
         title="A topic with a poll", content="See the attached poll", track_topic=False
     )
@@ -79,12 +77,8 @@ def test_submitting_a_new_topic_with_poll_data_creates_a_poll(
     assert [o.text for o in poll.options] == ["Red", "Blue"]
 
 
-def test_submitting_a_new_topic_without_poll_data_creates_no_poll(
-    request_context, forum, user
-):
-    form = new_topic_form(
-        title="A plain topic", content="No poll here", track_topic=False
-    )
+def test_submitting_a_new_topic_without_poll_data_creates_no_poll(request_context, forum, user):
+    form = new_topic_form(title="A plain topic", content="No poll here", track_topic=False)
 
     topic = form.save(user, forum)
 
@@ -120,9 +114,7 @@ def test_editing_a_reply_with_poll_data_creates_no_poll(request_context, topic, 
     assert Poll.get(Poll.post_id == existing_post.id) is None
 
 
-def test_malformed_poll_data_does_not_prevent_topic_creation(
-    request_context, forum, user
-):
+def test_malformed_poll_data_does_not_prevent_topic_creation(request_context, forum, user):
     form = new_topic_form(
         title="A topic with junk poll data", content="Still works", track_topic=False
     )
@@ -135,9 +127,7 @@ def test_malformed_poll_data_does_not_prevent_topic_creation(
     assert Poll.get(Poll.post_id == topic.first_post.id) is None
 
 
-def test_topics_only_removes_poll_data_from_reply_form(
-    request_context, default_settings
-):
+def test_topics_only_removes_poll_data_from_reply_form(request_context, default_settings):
     with topics_only(True):
         assert not hasattr(reply_form(), "poll_data")
 
@@ -147,9 +137,7 @@ def test_topics_only_does_not_affect_new_topic_form(request_context, default_set
         assert hasattr(new_topic_form(), "poll_data")
 
 
-def test_topics_only_disabled_again_restores_the_field(
-    request_context, default_settings
-):
+def test_topics_only_disabled_again_restores_the_field(request_context, default_settings):
     with topics_only(True):
         assert not hasattr(reply_form(), "poll_data")
     with topics_only(False):

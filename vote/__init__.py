@@ -14,9 +14,9 @@ import os
 
 from flask import Flask
 from flask_login import current_user
-from flaskbb.settings import BoolSetting, IntSetting, SettingGroup, flaskbb_config
 from flaskbb.forum.forms import NewTopicForm, ReplyForm
 from flaskbb.forum.models import Post
+from flaskbb.settings import BoolSetting, flaskbb_config, IntSetting, SettingGroup
 from flaskbb.utils.helpers import real, render_template
 from pluggy import HookimplMarker
 from wtforms import HiddenField
@@ -49,9 +49,7 @@ def flaskbb_load_translations():
 
 @hookimpl
 def flaskbb_load_blueprints(app: Flask):
-    app.register_blueprint(
-        vote_bp, url_prefix=app.config.get("PLUGIN_VOTE_URL_PREFIX", "/vote")
-    )
+    app.register_blueprint(vote_bp, url_prefix=app.config.get("PLUGIN_VOTE_URL_PREFIX", "/vote"))
 
 
 SETTINGS = SettingGroup(

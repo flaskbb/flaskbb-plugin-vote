@@ -10,7 +10,7 @@ The views for casting a vote in a poll and for deleting one.
 
 import logging
 
-from flask import Blueprint, abort, flash, redirect, request
+from flask import abort, Blueprint, flash, redirect, request
 from flask.views import MethodView
 from flask_babelplus import gettext as _
 from flask_login import current_user, login_required
@@ -22,9 +22,7 @@ from .utils import can_access_poll, can_delete_poll, cast_vote, poll_type_is_val
 
 logger = logging.getLogger(__name__)
 
-vote_bp = Blueprint(
-    "vote", __name__, template_folder="templates", static_folder="static"
-)
+vote_bp = Blueprint("vote", __name__, template_folder="templates", static_folder="static")
 
 
 class CastVote(MethodView):

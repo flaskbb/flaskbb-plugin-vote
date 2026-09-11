@@ -18,7 +18,7 @@ from flaskbb.forum.models import Forum, Post
 from flaskbb.user.models import User
 from flaskbb.utils.requirements import Has, IsAtleastSuperModerator, IsModeratorInForum
 
-from .models import MULTIPLE_CHOICE, POLL_TYPES, Poll, PollOption, PollVote
+from .models import MULTIPLE_CHOICE, Poll, POLL_TYPES, PollOption, PollVote
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +85,7 @@ def parse_poll_payload(raw: str | None, max_options: int) -> PollPayload | None:
     if not (MIN_OPTIONS <= len(cleaned_options) <= max_options):
         return None
 
-    return PollPayload(
-        question=question, poll_type=poll_type, options=tuple(cleaned_options)
-    )
+    return PollPayload(question=question, poll_type=poll_type, options=tuple(cleaned_options))
 
 
 def create_poll_for_post(post: Post, payload: PollPayload) -> Poll:

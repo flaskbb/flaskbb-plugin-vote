@@ -47,9 +47,7 @@ class Poll(BaseModel):
     # patching flaskbb.forum.models.
     post: Mapped["Post"] = relationship(
         "Post",
-        backref=db.backref(
-            "poll", uselist=False, cascade="all, delete-orphan", single_parent=True
-        ),
+        backref=db.backref("poll", uselist=False, cascade="all, delete-orphan", single_parent=True),
     )
 
     options: Mapped[list["PollOption"]] = relationship(
@@ -105,9 +103,7 @@ class PollVote(BaseModel):
     poll_option_id: Mapped[int] = mapped_column(
         ForeignKey("vote_poll_options.id", ondelete="CASCADE"), nullable=False
     )
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     date_created: Mapped[datetime.datetime] = mapped_column(
         UTCDateTime(timezone=True), default=time_utcnow, nullable=False
     )

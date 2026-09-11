@@ -65,20 +65,14 @@ def test_cast_vote_rejects_two_options_for_single_choice(application, poll, user
     assert poll.option_ids_voted_by(user.id) == []
 
 
-def test_cast_vote_accepts_multiple_options_for_multiple_choice(
-    application, multi_poll, user
-):
+def test_cast_vote_accepts_multiple_options_for_multiple_choice(application, multi_poll, user):
     cheese, pepperoni = multi_poll.options[0], multi_poll.options[1]
     _post(application, multi_poll, user, option_id=[str(cheese.id), str(pepperoni.id)])
 
-    assert sorted(multi_poll.option_ids_voted_by(user.id)) == sorted(
-        [cheese.id, pepperoni.id]
-    )
+    assert sorted(multi_poll.option_ids_voted_by(user.id)) == sorted([cheese.id, pepperoni.id])
 
 
-def test_cast_vote_rejects_option_from_a_different_poll(
-    application, poll, multi_poll, user
-):
+def test_cast_vote_rejects_option_from_a_different_poll(application, poll, multi_poll, user):
     foreign_option = multi_poll.options[0]
     _post(application, poll, user, option_id=str(foreign_option.id))
 
@@ -114,9 +108,7 @@ def _delete(application, poll, user):
 
 def test_delete_poll_requires_login(application, poll):
     view = DeletePoll.as_view("delete_poll")
-    with application.test_request_context(
-        method="POST", path=f"/vote/{poll.id}/delete"
-    ):
+    with application.test_request_context(method="POST", path=f"/vote/{poll.id}/delete"):
         resp = view(poll_id=poll.id)
     assert resp.status_code == 302
     assert Poll.get(Poll.id == poll.id) is not None
@@ -149,9 +141,7 @@ def test_delete_poll_allows_super_moderator(application, poll, super_moderator_u
     assert Poll.get(Poll.id == poll.id) is None
 
 
-def test_delete_poll_allows_moderator_of_the_polls_forum(
-    application, poll, moderator_user
-):
+def test_delete_poll_allows_moderator_of_the_polls_forum(application, poll, moderator_user):
     resp = _delete(application, poll, moderator_user)
     assert resp.status_code == 302
     assert Poll.get(Poll.id == poll.id) is None
