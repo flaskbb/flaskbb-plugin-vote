@@ -170,7 +170,7 @@ def _render_existing_poll(post: Post | None):
     if post is None:
         return None
 
-    poll: Poll | None = post.poll  # pyright: ignore[reportAttributeAccessIssue]
+    poll: Poll | None = post.poll  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
     if poll is None:
         return None
 
@@ -237,7 +237,7 @@ def flaskbb_tpl_scripts():
 def flaskbb_tpl_post_content_before(post: Post):
     # Post doesn't declare `poll` itself - it's added by Poll.post's backref
     # in models.py, since Post is a core model this plugin doesn't own.
-    poll: Poll | None = post.poll  # pyright: ignore[reportAttributeAccessIssue]
+    poll: Poll | None = post.poll  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
     if poll is None:
         return None
 
