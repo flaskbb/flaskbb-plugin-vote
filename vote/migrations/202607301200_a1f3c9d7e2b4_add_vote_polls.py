@@ -20,7 +20,7 @@ depends_on = "8ad96e49dc6"  # flaskbb core init migration - creates posts/users
 def upgrade():
     con = op.get_bind()
 
-    if not sa.inspect(con.engine).has_table("vote_polls"):
+    if not sa.inspect(con).has_table("vote_polls"):
         op.create_table(
             "vote_polls",
             sa.Column("id", sa.Integer(), nullable=False),
@@ -42,7 +42,7 @@ def upgrade():
             sa.UniqueConstraint("post_id", name=op.f("uq_vote_polls_post_id")),
         )
 
-    if not sa.inspect(con.engine).has_table("vote_poll_options"):
+    if not sa.inspect(con).has_table("vote_poll_options"):
         op.create_table(
             "vote_poll_options",
             sa.Column("id", sa.Integer(), nullable=False),
@@ -58,7 +58,7 @@ def upgrade():
             sa.PrimaryKeyConstraint("id", name=op.f("pk_vote_poll_options")),
         )
 
-    if not sa.inspect(con.engine).has_table("vote_poll_votes"):
+    if not sa.inspect(con).has_table("vote_poll_votes"):
         op.create_table(
             "vote_poll_votes",
             sa.Column("id", sa.Integer(), nullable=False),

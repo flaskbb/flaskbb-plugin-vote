@@ -21,7 +21,7 @@ from flaskbb.utils.helpers import real, render_template
 from pluggy import HookimplMarker
 from wtforms import HiddenField
 
-from .forms import DeletePollForm, VoteForm
+from .forms import VoteForm
 from .models import Poll
 from .utils import can_delete_poll, create_poll_for_post, parse_poll_payload
 from .views import vote_bp
@@ -183,7 +183,6 @@ def _render_existing_poll(post: Post | None):
         editing=True,
         can_delete=user.is_authenticated and can_delete_poll(user, poll),
         form=VoteForm(),
-        delete_form=DeletePollForm(),
     )
 
 
@@ -251,5 +250,4 @@ def flaskbb_tpl_post_content_before(post: Post):
         editing=False,
         can_delete=user.is_authenticated and can_delete_poll(user, poll),
         form=VoteForm(),
-        delete_form=DeletePollForm(),
     )

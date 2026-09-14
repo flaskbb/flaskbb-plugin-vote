@@ -1,9 +1,13 @@
 from contextlib import contextmanager
 
 import pytest
+from flask import g, session, url_for
 from flask_login import login_user, logout_user
+from flask_wtf.csrf import generate_csrf
+from flaskbb.extensions import csrf
 from werkzeug.exceptions import NotFound
 
+import vote
 from vote.models import Poll, PollVote
 from vote.views import CastVote, DeletePoll
 
@@ -153,3 +157,50 @@ def test_delete_poll_rejects_moderator_of_a_different_forum(
     with pytest.raises(NotFound):
         _delete(application, poll, other_moderator_user)
     assert Poll.get(Poll.id == poll.id) is not None
+
+
+def test_poll_widget_forms_swap_the_widget(application, poll, admin_user):
+    with application.test_request_context():
+        login_user(admin_user)
+        try:
+            html = vote.flaskbb_tpl_post_content_before(poll.post)
+            cast_url = url_for("vote.cast_vote", poll_id=poll.id)
+            delete_url = url_for("vote.delete_poll", poll_id=poll.id)
+        finally:
+            logout_user()
+
+    assert f'id="poll-{poll.id}"' in html
+    assert f'hx-post="{cast_url}"' in html
+    assert f'hx-post="{delete_url}"' in html
+    assert html.count(f'hx-select="#poll-{poll.id}"') == 2
+
+
+def test_delete_poll_accepts_the_csrf_token_htmx_sends_as_a_header(application, poll, admin_user):
+    """The delete button has no form of its own, so there is no csrf_token
+    field - DeletePollForm has to accept the request CSRFProtect already
+    validated from the X-CSRFToken header."""
+    with application.test_request_context():
+        # generate_csrf() caches the token on g, which lives on the
+        # package-scoped app context - a token an earlier test left there
+        # would skip writing the raw token into this session
+        g.pop("csrf_token", None)
+        token = generate_csrf()
+        raw_token = session["csrf_token"]
+        g.pop("csrf_token", None)
+
+    view = DeletePoll.as_view("delete_poll")
+    with application.test_request_context(
+        method="POST", path=f"/vote/{poll.id}/delete", headers={"X-CSRFToken": token}
+    ):
+        session["csrf_token"] = raw_token
+        csrf.protect()
+        login_user(admin_user)
+        try:
+            resp = view(poll_id=poll.id)
+        finally:
+            logout_user()
+            # g lives on the package-scoped app context and would leak
+            g.pop("csrf_valid", None)
+
+    assert resp.status_code == 302
+    assert Poll.get(Poll.id == poll.id) is None

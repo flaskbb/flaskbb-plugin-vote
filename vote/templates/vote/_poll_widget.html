@@ -1,10 +1,18 @@
-<div class="mb-3 col-12">
+{# The vote and delete views redirect to the post, which ends on its topic page -
+   htmx picks this widget out of that, or nothing once the poll is deleted. Every
+   swap attribute is set on the vote form and the delete button, because the post
+   sits inside the topic page's element that sets the swap targets of its
+   moderation actions. #}
+<div class="mb-3 col-12" id="poll-{{ poll.id }}">
     <div class="card my-2 vote-poll">
         <div class="card-body">
             <h6 class="card-title">{{ poll.question }}</h6>
 
             {% if can_vote and not editing and not user_vote_ids %}
-            <form method="post" action="{{ url_for('vote.cast_vote', poll_id=poll.id) }}">
+            <form method="post" action="{{ url_for('vote.cast_vote', poll_id=poll.id) }}"
+                  hx-post="{{ url_for('vote.cast_vote', poll_id=poll.id) }}"
+                  hx-target="#poll-{{ poll.id }}" hx-select="#poll-{{ poll.id }}" hx-swap="outerHTML"
+                  hx-select-oob="#flashed-messages">
                 {{ form.hidden_tag() }}
                 {% for option in poll.options %}
                 <div class="form-check">
@@ -43,13 +51,21 @@
             {% endif %}
 
             {% if can_delete %}
-            <form method="post" action="{{ url_for('vote.delete_poll', poll_id=poll.id) }}" class="mt-2">
-                {{ delete_form.hidden_tag() }}
-                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#confirmModal"
+            {# A button rather than a form: on the post and topic edit pages this
+               widget sits inside the edit form, and the browser drops a nested form.
+               htmx sends the CSRF token as a header, and hx-params="none" keeps the
+               edit form's fields out of the request. #}
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-danger"
+                        hx-post="{{ url_for('vote.delete_poll', poll_id=poll.id) }}"
+                        hx-params="none"
+                        hx-confirm="{{ _('Are you sure?') }}"
+                        hx-target="#poll-{{ poll.id }}" hx-select="#poll-{{ poll.id }}" hx-swap="outerHTML"
+                        hx-select-oob="#flashed-messages"
                         data-tooltip="tooltip" title="{{ _('Delete this poll') }}">
                     <span class="fas fa-trash fa-fw"></span> {{ _("Delete Poll") }}
                 </button>
-            </form>
+            </div>
             {% endif %}
         </div>
     </div>

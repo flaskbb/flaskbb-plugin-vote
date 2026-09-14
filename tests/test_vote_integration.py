@@ -9,6 +9,8 @@ create_app() and its hookimpls actually run) - see README.md.
 import json
 from contextlib import contextmanager
 
+from flask import url_for
+from flask_login import login_user, logout_user
 from flaskbb.extensions import pluggy
 from flaskbb.forum.forms import EditTopicForm, NewTopicForm, ReplyForm
 from flaskbb.settings import flaskbb_config
@@ -162,6 +164,25 @@ def test_editing_a_reply_shows_its_poll_read_only(request_context, poll):
     assert html is not None
     assert poll.question in html
     assert 'name="option_id"' not in html
+
+
+def test_editing_a_reply_offers_poll_deletion_without_a_nested_form(
+    request_context, poll, admin_user
+):
+    """The edit page renders the poll inside its own form - a form in there
+    would be dropped by the browser, and its delete button would submit the
+    edit form instead."""
+    login_user(admin_user)
+    try:
+        form = reply_form(obj=poll.post, content="Edited content")
+        html = vote_plugin.flaskbb_tpl_form_new_post_after(form)
+    finally:
+        logout_user()
+
+    assert html is not None
+    assert "<form" not in html
+    assert f'hx-post="{url_for("vote.delete_poll", poll_id=poll.id)}"' in html
+    assert 'hx-params="none"' in html
 
 
 def test_editing_a_reply_without_a_poll_renders_nothing(request_context, topic, user):
