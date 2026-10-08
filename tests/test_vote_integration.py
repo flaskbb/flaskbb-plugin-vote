@@ -200,7 +200,7 @@ def test_editing_a_topic_shows_its_poll_read_only(request_context, topic, user):
     PollOption(poll_id=poll.id, text="Margherita", position=0).save()
     PollOption(poll_id=poll.id, text="Pepperoni", position=1).save()
 
-    form = EditTopicForm(obj=topic.first_post, title=topic.title)
+    form = EditTopicForm(obj=topic, title=topic.title)
     html = vote_plugin.flaskbb_tpl_form_new_topic_after(form)
 
     assert html is not None
@@ -209,6 +209,6 @@ def test_editing_a_topic_shows_its_poll_read_only(request_context, topic, user):
 
 
 def test_editing_a_topic_without_a_poll_renders_nothing(request_context, topic):
-    form = EditTopicForm(obj=topic.first_post, title=topic.title)
+    form = EditTopicForm(obj=topic, title=topic.title)
 
     assert vote_plugin.flaskbb_tpl_form_new_topic_after(form) is None

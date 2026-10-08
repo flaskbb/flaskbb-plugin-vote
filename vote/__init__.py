@@ -26,8 +26,6 @@ from .models import Poll
 from .utils import can_delete_poll, create_poll_for_post, parse_poll_payload
 from .views import vote_bp
 
-__version__ = "1.0.0"
-
 hookimpl = HookimplMarker("flaskbb")
 
 # Stashes a pending poll payload on the Post between save and post-save hooks,

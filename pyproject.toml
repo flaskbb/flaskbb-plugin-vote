@@ -2,7 +2,7 @@
 name = "flaskbb-plugin-vote"
 version = "1.2.0"
 dependencies = [
-    "FlaskBB>=3.0.0",
+    "FlaskBB>=3.0.0rc1",
 ]
 requires-python = ">=3.12"
 authors = [

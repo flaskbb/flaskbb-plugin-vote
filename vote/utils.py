@@ -133,7 +133,7 @@ def cast_vote(poll: Poll, user: User, option_ids: list[int]) -> None:
 
 
 def can_delete_poll(user: User, poll: Poll) -> bool:
-    """Mirrors flaskbb's staff branches of ``CanDeletePost`` - only an
+    """Mirrors flaskbb's staff branches of ``can_delete_post`` - only an
     admin, a super moderator, or a moderator of the poll's forum with the
     ``editpost`` permission may delete a poll. Unlike editing/deleting a
     post, the poster themselves is never allowed to delete their own poll.

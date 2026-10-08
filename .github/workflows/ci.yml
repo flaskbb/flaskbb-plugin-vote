@@ -17,8 +17,21 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
 
+    # pyproject.toml installs flaskbb from ../flaskbb and the tests import its tests.fixtures
+    defaults:
+      run:
+        working-directory: plugin
+
     steps:
       - uses: actions/checkout@v6
+        with:
+          path: plugin
+
+      - name: Check out FlaskBB
+        uses: actions/checkout@v6
+        with:
+          repository: flaskbb/flaskbb
+          path: flaskbb
 
       - name: Install uv and set up Python
         uses: astral-sh/setup-uv@v7
