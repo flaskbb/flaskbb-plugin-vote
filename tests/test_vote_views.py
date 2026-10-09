@@ -204,3 +204,24 @@ def test_delete_poll_accepts_the_csrf_token_htmx_sends_as_a_header(application, 
 
     assert resp.status_code == 302
     assert Poll.get(Poll.id == poll.id) is None
+
+
+def test_poll_widget_shows_results_to_a_voter(application, poll, user, admin_user):
+    red, green = poll.options[0], poll.options[1]
+    PollVote(poll_option_id=red.id, user_id=user.id).save()
+    PollVote(poll_option_id=red.id, user_id=admin_user.id).save()
+    PollVote(poll_option_id=green.id, user_id=admin_user.id).save()
+    poll = Poll.get(Poll.id == poll.id)
+
+    with application.test_request_context():
+        login_user(user)
+        try:
+            html = vote.flaskbb_tpl_post_content_before(poll.post)
+        finally:
+            logout_user()
+
+    assert "67% (2)" in html
+    assert "33% (1)" in html
+    assert "0% (0)" in html
+    assert "3 total votes" in html
+    assert 'name="option_id"' not in html

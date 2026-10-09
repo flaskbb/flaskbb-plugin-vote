@@ -8,7 +8,7 @@
         <div class="card-body">
             <h6 class="card-title">{{ poll.question }}</h6>
 
-            {% if can_vote and not editing and not user_vote_ids %}
+            {% if can_vote and not editing and not summary.user_option_ids %}
             <form method="post" action="{{ url_for('vote.cast_vote', poll_id=poll.id) }}"
                   hx-post="{{ url_for('vote.cast_vote', poll_id=poll.id) }}"
                   hx-target="#poll-{{ poll.id }}" hx-select="#poll-{{ poll.id }}" hx-swap="outerHTML"
@@ -28,11 +28,12 @@
             {% else %}
             <ul class="list-unstyled mb-1">
                 {% for option in poll.options %}
-                {% set percentage = (100 * option.vote_count / poll.total_votes) if poll.total_votes else 0 %}
-                <li class="mb-1 {{ 'fw-bold' if option.id in user_vote_ids }}">
+                {% set count = summary.counts[option.id] %}
+                {% set percentage = (100 * count / summary.total) if summary.total else 0 %}
+                <li class="mb-1 {{ 'fw-bold' if option.id in summary.user_option_ids }}">
                     <div class="d-flex justify-content-between">
                         <span>{{ option.text }}</span>
-                        <span>{{ "%.0f"|format(percentage) }}% ({{ option.vote_count }})</span>
+                        <span>{{ "%.0f"|format(percentage) }}% ({{ count }})</span>
                     </div>
                     <div class="progress" style="height: 4px;">
                         <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%"></div>
@@ -44,7 +45,7 @@
                 {% if editing %}
                 {{ _("This poll cannot be changed here.") }}
                 {% else %}
-                {{ _("%(count)s total votes", count=poll.total_votes) }}
+                {{ _("%(count)s total votes", count=summary.total) }}
                 {% if not can_vote %} &middot; {{ _("Log in to vote.") }}{% endif %}
                 {% endif %}
             </small>

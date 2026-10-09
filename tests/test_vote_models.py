@@ -1,3 +1,6 @@
+from flaskbb.extensions import db
+from sqlalchemy import event
+
 from vote.models import Poll, PollOption, PollVote
 
 
@@ -59,3 +62,37 @@ def test_deleting_option_cascades_to_votes(poll, user):
     red.delete()
 
     assert PollVote.get(PollVote.id == vote_id) is None
+
+
+def test_vote_summary_counts_every_option_in_one_query(poll, user, admin_user):
+    red, green = poll.options[0], poll.options[1]
+    PollVote(poll_option_id=red.id, user_id=user.id).save()
+    PollVote(poll_option_id=red.id, user_id=admin_user.id).save()
+    PollVote(poll_option_id=green.id, user_id=admin_user.id).save()
+    poll = Poll.get(Poll.id == poll.id)
+    admin_id = admin_user.id
+
+    statements = []
+
+    def record(conn, cursor, statement, *args):
+        statements.append(statement)
+
+    event.listen(db.engine, "before_cursor_execute", record)
+    try:
+        summary = poll.vote_summary(admin_id)
+    finally:
+        event.remove(db.engine, "before_cursor_execute", record)
+
+    assert len(statements) == 1
+    assert summary.counts == {red.id: 2, green.id: 1, poll.options[2].id: 0}
+    assert summary.total == 3
+    assert summary.user_option_ids == [red.id, green.id]
+
+
+def test_vote_summary_for_guest_has_no_user_votes(poll, user):
+    PollVote(poll_option_id=poll.options[0].id, user_id=user.id).save()
+
+    summary = Poll.get(Poll.id == poll.id).vote_summary(None)
+
+    assert summary.total == 1
+    assert summary.user_option_ids == []

@@ -176,7 +176,7 @@ def _render_existing_poll(post: Post | None):
     return render_template(
         "vote/_poll_widget.html",
         poll=poll,
-        user_vote_ids=[],
+        summary=poll.vote_summary(None),
         can_vote=False,
         editing=True,
         can_delete=user.is_authenticated and can_delete_poll(user, poll),
@@ -239,11 +239,10 @@ def flaskbb_tpl_post_content_before(post: Post):
         return None
 
     user = real(current_user)
-    user_vote_ids = poll.option_ids_voted_by(user.id) if user.is_authenticated else []
     return render_template(
         "vote/_poll_widget.html",
         poll=poll,
-        user_vote_ids=user_vote_ids,
+        summary=poll.vote_summary(user.id if user.is_authenticated else None),
         can_vote=user.is_authenticated,
         editing=False,
         can_delete=user.is_authenticated and can_delete_poll(user, poll),
