@@ -7,6 +7,11 @@ from tests.fixtures.user import *
 from vote.models import Poll, PollOption
 
 
+@pytest.fixture(scope="package")
+def tested_plugins():
+    return ["vote"]
+
+
 def _reply(topic, user):
     """A reply post in ``topic`` - polls attach to this, not the first
     post, so cascade-delete tests don't get entangled with Post.delete()
