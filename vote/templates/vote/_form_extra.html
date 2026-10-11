@@ -1,5 +1,6 @@
-<!-- poll_data itself is already rendered by this page's form.hidden_tag() call,
-     since it's a HiddenField - only the supporting dialog belongs here. -->
+{# form.hidden_tag() leaves poll_data out (see PollDataInput), so it starts out
+   with the poll of the post that is edited. #}
+{{ form.poll_data(value=value) }}
 <style>
     /* A native <dialog> paints the UA's Canvas colour (white), and the .modal-*
        children read their surfaces from --bs-modal-* variables that Bootstrap

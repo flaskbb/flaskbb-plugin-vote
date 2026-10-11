@@ -14,16 +14,21 @@ import os
 
 from flask import Flask
 from flask_login import current_user
-from flaskbb.forum.forms import NewTopicForm, ReplyForm
+from flaskbb.forum.forms import EditTopicForm, NewTopicForm, ReplyForm
 from flaskbb.forum.models import Post
 from flaskbb.settings import BoolSetting, flaskbb_config, IntSetting, SettingGroup
 from flaskbb.utils.helpers import real, render_template
 from pluggy import HookimplMarker
-from wtforms import HiddenField
 
-from .forms import VoteForm
-from .models import Poll
-from .utils import can_delete_poll, create_poll_for_post, parse_poll_payload
+from .forms import poll_data_field, VoteForm
+from .models import Poll, VoteSummary
+from .utils import (
+    can_delete_poll,
+    create_poll_for_post,
+    parse_poll_payload,
+    poll_payload,
+    update_poll_for_post,
+)
 from .views import vote_bp
 
 hookimpl = HookimplMarker("flaskbb")
@@ -103,7 +108,11 @@ def _topics_only() -> bool:
 # Attaching the hidden poll_data field to the topic/post forms
 @hookimpl
 def flaskbb_form_topic(form: type[NewTopicForm]):
-    form.poll_data = HiddenField()
+    # EditTopic.form() passes NewTopicForm as well, but builds an
+    # EditTopicForm - a sibling class (both subclass TopicForm), so it needs
+    # the field of its own.
+    form.poll_data = poll_data_field()
+    EditTopicForm.poll_data = poll_data_field()
 
 
 @hookimpl
@@ -123,22 +132,37 @@ def flaskbb_form_post(form: type[ReplyForm]):
         if "poll_data" in form.__dict__:
             delattr(form, "poll_data")
         return
-    form.poll_data = HiddenField()
+    form.poll_data = poll_data_field()
+
+
+def _save_poll_data(form, post: Post):
+    poll_data = getattr(form, "poll_data", None)
+    if poll_data is None:
+        return
+
+    if post.id is None:
+        setattr(post, _PENDING_ATTR, poll_data.data)
+        return
+
+    # An edit. raw_data is empty if the request had no poll_data at all -
+    # e.g. a theme without the hook that renders it - which must not read as
+    # the poll having been removed.
+    if poll_data.raw_data:
+        update_poll_for_post(post, poll_data.data, max_options=_max_options())
 
 
 @hookimpl
 def flaskbb_form_topic_save(form, topic):
-    poll_data = getattr(form, "poll_data", None)
-    post = getattr(topic, "_post", None)
-    if poll_data is not None and post is not None:
-        setattr(post, _PENDING_ATTR, poll_data.data)
+    # A new topic only gets its first post once it's saved, it's kept in
+    # topic._post until then.
+    post = topic.first_post if topic.id else getattr(topic, "_post", None)
+    if post is not None:
+        _save_poll_data(form, post)
 
 
 @hookimpl
 def flaskbb_form_post_save(form, post: Post):
-    poll_data = getattr(form, "poll_data", None)
-    if poll_data is not None:
-        setattr(post, _PENDING_ATTR, poll_data.data)
+    _save_poll_data(form, post)
 
 
 @hookimpl
@@ -160,23 +184,14 @@ def flaskbb_event_post_save_after(post: Post, is_new: bool):
 # --- Rendering ---
 
 
-def _render_existing_poll(post: Post | None):
-    """Renders ``post``'s poll (if it has one) read-only, for display on an
-    edit form - editing a post/topic never touches its poll, only the
-    dedicated delete action does, so this never offers a voting UI.
-    """
-    if post is None:
-        return None
-
-    poll: Poll | None = post.poll  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
-    if poll is None:
-        return None
-
+def _render_locked_poll(poll: Poll, summary: VoteSummary):
+    """Renders a poll read-only, for display on an edit form - never offers
+    a voting UI, only the moderators' delete action."""
     user = real(current_user)
     return render_template(
         "vote/_poll_widget.html",
         poll=poll,
-        summary=poll.vote_summary(None),
+        summary=summary,
         can_vote=False,
         editing=True,
         can_delete=user.is_authenticated and can_delete_poll(user, poll),
@@ -184,35 +199,47 @@ def _render_existing_poll(post: Post | None):
     )
 
 
+def _render_poll_form(form, post: Post | None):
+    """The poll dialog and the ``poll_data`` field of a topic or post form,
+    ``post`` being the post that is edited. Its poll starts out in the
+    dialog, unless it can't be changed anymore - it has votes, or the form
+    has no ``poll_data`` (a reply while TOPICS_ONLY is on). Then it's shown
+    read-only, and the dialog is only of use once a moderator deleted the
+    poll (see vote.js).
+    """
+    poll: Poll | None = post.poll if post is not None else None  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
+    locked_poll = None
+    initial = ""
+    if poll is not None:
+        summary = poll.vote_summary(None)
+        if summary.total or not hasattr(form, "poll_data"):
+            locked_poll = _render_locked_poll(poll, summary)
+        else:
+            initial = poll_payload(poll)
+
+    if not hasattr(form, "poll_data"):
+        return locked_poll
+
+    poll_data = form.poll_data
+    editor = render_template(
+        "vote/_form_extra.html",
+        form=form,
+        value=poll_data.data if poll_data.raw_data else initial,
+    )
+    return (locked_poll or "") + editor
+
+
 @hookimpl
 def flaskbb_tpl_form_new_topic_after(form):
-    if hasattr(form, "poll_data"):
-        return render_template("vote/_form_extra.html", form=form)
-
-    # EditTopicForm - flaskbb_form_topic(form=NewTopicForm) above patches a
-    # sibling class of EditTopicForm (both just subclass TopicForm), so an
-    # EditTopicForm instance never has poll_data. Show its topic's existing
-    # poll read-only instead, since flaskbb_form_topic_save never fires a
-    # poll onto it either.
-    topic = getattr(form, "topic", None)
-    if topic is None:
-        return None
-    return _render_existing_poll(topic.first_post)
+    # Only EditTopicForm has a post, the topic's first one.
+    return _render_poll_form(form, getattr(form, "post", None))
 
 
 @hookimpl
 def flaskbb_tpl_form_new_post_after(form):
-    # ReplyForm is shared between NewPost and EditPost (see forum/views.py) -
-    # form.post is only set when editing. A poll attached while editing
-    # would never be created (flaskbb_event_post_save_after only fires for
-    # is_new=True posts), so the create-poll field must not render there -
-    # show the post's existing poll read-only instead.
-    post = getattr(form, "post", None)
-    if post is not None:
-        return _render_existing_poll(post)
-    if hasattr(form, "poll_data"):
-        return render_template("vote/_form_extra.html", form=form)
-    return None
+    # ReplyForm is shared between NewPost and EditPost (see forum/views.py),
+    # form.post is only set when editing.
+    return _render_poll_form(form, getattr(form, "post", None))
 
 
 @hookimpl

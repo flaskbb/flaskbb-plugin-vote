@@ -88,6 +88,18 @@ def parse_poll_payload(raw: str | None, max_options: int) -> PollPayload | None:
     return PollPayload(question=question, poll_type=poll_type, options=tuple(cleaned_options))
 
 
+def poll_payload(poll: Poll) -> str:
+    """The JSON payload the poll dialog edits - the inverse of
+    ``parse_poll_payload``."""
+    return json.dumps(
+        {
+            "question": poll.question,
+            "type": poll.poll_type,
+            "options": [option.text for option in poll.options],
+        }
+    )
+
+
 def create_poll_for_post(post: Post, payload: PollPayload) -> Poll:
     """Creates a poll and its options for ``post`` in a single transaction."""
     poll = Poll(post_id=post.id, question=payload.question, poll_type=payload.poll_type)
@@ -99,6 +111,39 @@ def create_poll_for_post(post: Post, payload: PollPayload) -> Poll:
 
     db.session.commit()
     return poll
+
+
+def update_poll_for_post(post: Post, raw: str, max_options: int) -> None:
+    """Applies the poll payload of an edit form to ``post``: an empty one
+    removes its poll, a valid one creates or replaces it.
+
+    A poll that already has votes is left alone, so are an invalid payload
+    and a removal while the post has no poll. Nothing is committed - this
+    runs while the edit form is saved, and the post's own save commits it.
+    """
+    poll: Poll | None = post.poll  # type: ignore[attr-defined] # pyright: ignore[reportAttributeAccessIssue]
+    if poll is not None and poll.total_votes:
+        return
+
+    if not raw:
+        if poll is not None:
+            db.session.delete(poll)
+        return
+
+    payload = parse_poll_payload(raw, max_options=max_options)
+    if payload is None:
+        return
+
+    if poll is None:
+        poll = Poll(post_id=post.id)
+        db.session.add(poll)
+
+    poll.question = payload.question
+    poll.poll_type = payload.poll_type
+    # The options have no votes, so replacing them loses nothing.
+    poll.options = [
+        PollOption(text=text, position=position) for position, text in enumerate(payload.options)
+    ]
 
 
 def can_access_poll(user: User, poll: Poll) -> bool:

@@ -7,16 +7,22 @@ create_app() and its hookimpls actually run) - see README.md.
 """
 
 import json
+import re
 from contextlib import contextmanager
+from html import unescape
 
+import pytest
 from flask import url_for
 from flask_login import login_user, logout_user
 from flaskbb.extensions import pluggy
 from flaskbb.forum.forms import EditTopicForm, NewTopicForm, ReplyForm
+from flaskbb.forum.models import Post
 from flaskbb.settings import flaskbb_config
+from werkzeug.datastructures import MultiDict
 
 import vote as vote_plugin
 from vote.models import Poll, PollOption
+from vote.utils import cast_vote
 
 
 def poll_json(**overrides):
@@ -99,21 +105,99 @@ def test_submitting_a_reply_with_poll_data_creates_a_poll(request_context, topic
     assert [o.text for o in poll.options] == ["A", "B", "C"]
 
 
-def test_editing_a_reply_with_poll_data_creates_no_poll(request_context, topic, user):
-    """ReplyForm is shared between NewPost and EditPost - poll_data is only
-    ever meant to be honored for a brand new post (see the comment on
-    flaskbb_tpl_form_new_post_after in vote/__init__.py). Simulating an
-    edit here by passing obj=<an existing post> exercises the is_new=False
-    guard in flaskbb_event_post_save_after directly, regardless of
-    whether the template actually renders the field for edits.
-    """
-    existing_post = topic.first_post
-    form = reply_form(obj=existing_post, content="Edited content", track_topic=False)
-    form.poll_data.data = poll_json()
+def edit_reply_form(post, **formdata):
+    # A submitted edit - only a poll_data that was part of the request
+    # changes the post's poll.
+    return reply_form(obj=post, formdata=MultiDict({"content": "Edited content", **formdata}))
 
-    form.save(user, topic)
 
-    assert Poll.get(Poll.post_id == existing_post.id) is None
+def edit_topic_form(topic, **formdata):
+    pluggy.hook.flaskbb_form_topic(form=NewTopicForm)
+    return EditTopicForm(
+        obj=topic,
+        formdata=MultiDict({"title": topic.title, "content": "Edited content", **formdata}),
+    )
+
+
+def test_editing_a_reply_with_poll_data_creates_a_poll(request_context, topic, user):
+    post = Post(content="A reply").save(user=user, topic=topic)
+
+    edit_reply_form(post, poll_data=poll_json()).save(user, topic)
+
+    poll = Poll.get(Poll.post_id == post.id)
+    assert poll is not None
+    assert poll.question == "Favorite color?"
+    assert [o.text for o in poll.options] == ["Red", "Blue"]
+
+
+def test_editing_a_reply_replaces_a_poll_without_votes(request_context, poll, user):
+    payload = poll_json(question="Pick one", type="multiple", options=["A", "B", "C"])
+
+    edit_reply_form(poll.post, poll_data=payload).save(user, poll.post.topic)
+
+    edited = Poll.get(Poll.post_id == poll.post_id)
+    assert edited.question == "Pick one"
+    assert edited.is_multiple_choice
+    assert [(o.text, o.position) for o in edited.options] == [("A", 0), ("B", 1), ("C", 2)]
+    assert PollOption.count() == 3
+
+
+def test_editing_a_reply_with_empty_poll_data_removes_a_poll_without_votes(
+    request_context, poll, user
+):
+    post_id = poll.post_id
+
+    edit_reply_form(poll.post, poll_data="").save(user, poll.post.topic)
+
+    assert Poll.get(Poll.post_id == post_id) is None
+    assert PollOption.count() == 0
+
+
+def test_editing_a_reply_with_malformed_poll_data_keeps_its_poll(request_context, poll, user):
+    edit_reply_form(poll.post, poll_data="not json").save(user, poll.post.topic)
+
+    assert Poll.get(Poll.post_id == poll.post_id).question == "Favorite color?"
+
+
+def test_editing_a_reply_without_poll_data_in_the_request_keeps_its_poll(
+    request_context, poll, user
+):
+    edit_reply_form(poll.post).save(user, poll.post.topic)
+
+    assert Poll.get(Poll.post_id == poll.post_id) is not None
+
+
+@pytest.mark.parametrize("payload", ["", poll_json(question="Pick one")])
+def test_editing_a_reply_leaves_a_poll_with_votes_alone(
+    request_context, poll, user, admin_user, payload
+):
+    cast_vote(poll, admin_user, [poll.options[0].id])
+
+    edit_reply_form(poll.post, poll_data=payload).save(user, poll.post.topic)
+
+    kept = Poll.get(Poll.post_id == poll.post_id)
+    assert kept.question == "Favorite color?"
+    assert kept.total_votes == 1
+
+
+def test_edit_topic_form_has_poll_data_field(request_context, topic):
+    assert hasattr(edit_topic_form(topic), "poll_data")
+
+
+def test_editing_a_topic_with_poll_data_creates_a_poll(request_context, topic, user):
+    edit_topic_form(topic, poll_data=poll_json()).save(user, topic.forum)
+
+    poll = Poll.get(Poll.post_id == topic.first_post.id)
+    assert poll is not None
+    assert [o.text for o in poll.options] == ["Red", "Blue"]
+
+
+def test_editing_a_topic_with_empty_poll_data_removes_its_poll(request_context, topic, user):
+    Poll(post_id=topic.first_post.id, question="Best pizza?", poll_type="single").save()
+
+    edit_topic_form(topic, poll_data="").save(user, topic.forum)
+
+    assert Poll.get(Poll.post_id == topic.first_post.id) is None
 
 
 def test_malformed_poll_data_does_not_prevent_topic_creation(request_context, forum, user):
@@ -156,14 +240,56 @@ def test_topics_only_prevents_a_reply_poll_end_to_end(request_context, topic, us
         assert Poll.get(Poll.post_id == post.id) is None
 
 
-def test_editing_a_reply_shows_its_poll_read_only(request_context, poll):
-    form = reply_form(obj=poll.post, content="Edited content")
+def rendered_poll_data(html):
+    match = re.search(
+        r'<input id="poll_data" name="poll_data" type="hidden" value="([^"]*)">', html
+    )
+    assert match is not None
+    return unescape(match.group(1))
+
+
+def test_hidden_tag_leaves_poll_data_to_the_plugin(request_context, default_settings):
+    form = new_topic_form()
+
+    assert "poll_data" not in form.hidden_tag()
+    assert rendered_poll_data(vote_plugin.flaskbb_tpl_form_new_topic_after(form)) == ""
+
+
+def test_editing_a_reply_starts_with_its_poll_in_the_dialog(request_context, poll):
+    form = reply_form(obj=poll.post)
 
     html = vote_plugin.flaskbb_tpl_form_new_post_after(form)
 
-    assert html is not None
+    assert 'id="vote-poll-dialog"' in html
+    assert "data-vote-poll-locked" not in html
+    assert json.loads(rendered_poll_data(html)) == {
+        "question": "Favorite color?",
+        "type": "single",
+        "options": ["Red", "Green", "Blue"],
+    }
+
+
+def test_a_resubmitted_edit_form_keeps_the_submitted_poll_data(request_context, poll):
+    form = edit_reply_form(poll.post, poll_data="")
+
+    html = vote_plugin.flaskbb_tpl_form_new_post_after(form)
+
+    assert rendered_poll_data(html) == ""
+
+
+def test_editing_a_reply_shows_a_poll_with_votes_read_only(request_context, poll, admin_user):
+    cast_vote(poll, admin_user, [poll.options[0].id])
+    form = reply_form(obj=poll.post)
+
+    html = vote_plugin.flaskbb_tpl_form_new_post_after(form)
+
     assert poll.question in html
+    assert "data-vote-poll-locked" in html
+    assert "This poll has votes and can no longer be changed." in html
     assert 'name="option_id"' not in html
+    # for once a moderator deleted the poll
+    assert 'id="vote-poll-dialog"' in html
+    assert rendered_poll_data(html) == ""
 
 
 def test_editing_a_reply_offers_poll_deletion_without_a_nested_form(
@@ -172,6 +298,7 @@ def test_editing_a_reply_offers_poll_deletion_without_a_nested_form(
     """The edit page renders the poll inside its own form - a form in there
     would be dropped by the browser, and its delete button would submit the
     edit form instead."""
+    cast_vote(poll, admin_user, [poll.options[0].id])
     login_user(admin_user)
     try:
         form = reply_form(obj=poll.post, content="Edited content")
@@ -185,30 +312,39 @@ def test_editing_a_reply_offers_poll_deletion_without_a_nested_form(
     assert 'hx-params="none"' in html
 
 
-def test_editing_a_reply_without_a_poll_renders_nothing(request_context, topic, user):
-    from flaskbb.forum.models import Post
-
+def test_editing_a_reply_without_a_poll_renders_an_empty_dialog(request_context, topic, user):
     post = Post(content="No poll here").save(user=user, topic=topic)
     form = reply_form(obj=post, content="Edited content")
 
-    assert vote_plugin.flaskbb_tpl_form_new_post_after(form) is None
+    html = vote_plugin.flaskbb_tpl_form_new_post_after(form)
+
+    assert 'id="vote-poll-dialog"' in html
+    assert rendered_poll_data(html) == ""
 
 
-def test_editing_a_topic_shows_its_poll_read_only(request_context, topic, user):
+def test_editing_a_reply_while_topics_only_shows_its_poll_read_only(request_context, poll):
+    with topics_only(True):
+        form = reply_form(obj=poll.post)
+        html = vote_plugin.flaskbb_tpl_form_new_post_after(form)
+
+    assert poll.question in html
+    assert "This poll cannot be changed here." in html
+    assert 'id="vote-poll-dialog"' not in html
+
+
+def test_editing_a_topic_starts_with_its_poll_in_the_dialog(request_context, topic, user):
     poll = Poll(post_id=topic.first_post.id, question="Best pizza?", poll_type="single")
     poll.save()
     PollOption(poll_id=poll.id, text="Margherita", position=0).save()
     PollOption(poll_id=poll.id, text="Pepperoni", position=1).save()
 
-    form = EditTopicForm(obj=topic, title=topic.title)
-    html = vote_plugin.flaskbb_tpl_form_new_topic_after(form)
+    html = vote_plugin.flaskbb_tpl_form_new_topic_after(edit_topic_form(topic))
 
-    assert html is not None
-    assert "Best pizza?" in html
-    assert 'name="option_id"' not in html
+    assert json.loads(rendered_poll_data(html))["options"] == ["Margherita", "Pepperoni"]
 
 
-def test_editing_a_topic_without_a_poll_renders_nothing(request_context, topic):
-    form = EditTopicForm(obj=topic, title=topic.title)
+def test_editing_a_topic_without_a_poll_renders_an_empty_dialog(request_context, topic):
+    html = vote_plugin.flaskbb_tpl_form_new_topic_after(edit_topic_form(topic))
 
-    assert vote_plugin.flaskbb_tpl_form_new_topic_after(form) is None
+    assert 'id="vote-poll-dialog"' in html
+    assert rendered_poll_data(html) == ""

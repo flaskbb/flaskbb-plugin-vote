@@ -3,7 +3,7 @@
    swap attribute is set on the vote form and the delete button, because the post
    sits inside the topic page's element that sets the swap targets of its
    moderation actions. #}
-<div class="mb-3 col-12" id="poll-{{ poll.id }}">
+<div class="mb-3 col-12" id="poll-{{ poll.id }}"{% if editing %} data-vote-poll-locked{% endif %}>
     <div class="card my-2 vote-poll">
         <div class="card-body">
             <h6 class="card-title">{{ poll.question }}</h6>
@@ -42,7 +42,9 @@
                 {% endfor %}
             </ul>
             <small class="text-muted">
-                {% if editing %}
+                {% if editing and summary.total %}
+                {{ _("This poll has votes and can no longer be changed.") }}
+                {% elif editing %}
                 {{ _("This poll cannot be changed here.") }}
                 {% else %}
                 {{ _("%(count)s total votes", count=summary.total) }}

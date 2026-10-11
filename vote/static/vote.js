@@ -129,12 +129,25 @@
       const dialog = document.getElementById("vote-poll-dialog");
 
       // Missing either one means this editor instance has no wired-up poll
-      // support (e.g. the quick-reply box, which has no dialog, or editing
-      // an existing post) - hide rather than offer a button that can't do
-      // anything.
+      // support (e.g. the quick-reply box, which has no dialog, or editing a
+      // reply while polls are topics-only) - hide rather than offer a button
+      // that can't do anything.
       if (!this.hiddenField || !dialog) {
         this.hidden = true;
         return;
+      }
+
+      // An edit form shows a poll that has votes read-only, it can't be
+      // changed. Deleting it swaps it out, then a new one can be added.
+      const lockedPoll = form.querySelector("[data-vote-poll-locked]");
+      if (lockedPoll) {
+        this.hidden = true;
+        new MutationObserver((records, observer) => {
+          if (!lockedPoll.isConnected) {
+            this.hidden = false;
+            observer.disconnect();
+          }
+        }).observe(lockedPoll.parentNode, { childList: true });
       }
 
       this.refreshActiveState();

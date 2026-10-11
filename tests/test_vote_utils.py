@@ -9,6 +9,7 @@ from vote.utils import (
     cast_vote,
     create_poll_for_post,
     parse_poll_payload,
+    poll_payload,
     poll_type_is_valid_for,
 )
 
@@ -93,6 +94,15 @@ def test_create_poll_for_post(topic, user):
     assert poll.post_id == post.id
     assert [o.text for o in poll.options] == ["Red", "Blue"]
     assert [o.position for o in poll.options] == [0, 1]
+
+
+def test_poll_payload_round_trips(poll):
+    payload = parse_poll_payload(poll_payload(poll), max_options=10)
+
+    assert payload is not None
+    assert payload.question == poll.question
+    assert payload.poll_type == poll.poll_type
+    assert payload.options == ("Red", "Green", "Blue")
 
 
 def test_can_access_poll_true_for_member_of_forum_group(poll, user):
