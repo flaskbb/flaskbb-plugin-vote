@@ -3,6 +3,14 @@ Changelog
 
 Here you can see the full list of changes between each release.
 
+Version 1.2.3
+-------------
+
+Released on October 28th, 2026
+
+* Update dependencies
+
+
 Version 1.2.2
 -------------
 
